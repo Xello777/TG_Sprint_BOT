@@ -5,8 +5,8 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
 from fastapi import FastAPI, Request
-from app.config import TELEGRAM_TOKEN
-from app.bot import handle_update  # создадим в следующем шаге
+from config import TELEGRAM_TOKEN
+from bot import handle_update  # создадим в следующем шаге
 
 app = FastAPI()
 
