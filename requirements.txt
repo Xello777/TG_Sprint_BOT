@@ -4,3 +4,4 @@ python-dotenv
 sqlalchemy
 langdetect
 better_profanity
+httpx
