@@ -8,9 +8,12 @@ logging.basicConfig(level=logging.INFO)
 async def handle_update(data: dict):
     logging.info("[📥] handle_update вызван")
 
+ 
+        
 async def handle_update(data: dict):
     if "message" not in data:
-        return
+    logging.warning("[⚠️] Нет поля 'message' в апдейте")
+         return
 
     msg = data["message"]
     user = msg.get("from", {})
