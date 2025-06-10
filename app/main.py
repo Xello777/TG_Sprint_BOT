@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
-from app.config import TELEGRAM_TOKEN, DEBUG_MODE
-from app.bot import handle_update
-from app.db import start_sprint, get_active_sprints, get_words_for_sprint
+from .config import TELEGRAM_TOKEN, DEBUG_MODE
+from .bot import handle_update
+from .db import start_sprint, get_active_sprints, get_words_for_sprint
 
 app = FastAPI()
 
