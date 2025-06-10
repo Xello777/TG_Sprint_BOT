@@ -2,6 +2,9 @@ from app.db import get_active_sprints, add_word
 from app.filters import clean_input, is_valid_input
 from app.lang_detect import detect_language
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 async def handle_update(data: dict):
     if "message" not in data:
         return
@@ -26,3 +29,4 @@ async def handle_update(data: dict):
     for sprint_id in sprint_ids:
         for word in words:
             add_word(user_id, sprint_id, word, language)
+            logging.info(f"[✅] Saved word '{word}' from user {user_id} in sprint {sprint_id} ({language})")
