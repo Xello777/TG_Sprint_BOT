@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
-from app.config import TELEGRAM_TOKEN
-from app.bot import handle_update
+from .config import TELEGRAM_TOKEN
+from .bot import handle_update
 
 app = FastAPI()
 
