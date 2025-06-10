@@ -11,7 +11,8 @@ async def handle_update(data: dict):
  
         
 async def handle_update(data: dict):
-    if "message" not in data:   #logging.warning("[⚠️] Нет поля 'message' в апдейте")
+   logging.warning("Handle update called!") 
+   if "message" not in data:   
         return  
 
     msg = data["message"]
