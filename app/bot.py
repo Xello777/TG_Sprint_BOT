@@ -1,20 +1,15 @@
+import logging
 from app.db import get_active_sprints, add_word
 from app.filters import clean_input, is_valid_input
 from app.lang_detect import detect_language
 
-import logging
 logging.basicConfig(level=logging.INFO)
 
 async def handle_update(data: dict):
-    logging.info("[📥] handle_update вызван")
+    logging.warning("Handle update called!")
 
- 
-        
-async def handle_update(data: dict):
-   logging.warning("Handle update called!") 
-    
-   if "message" not in data:   
-        return  
+    if "message" not in data:
+        return
 
     msg = data["message"]
     user = msg.get("from", {})
