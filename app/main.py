@@ -5,7 +5,7 @@ import os
  
 
 from fastapi import FastAPI, Request
-from config import TELEGRAM_TOKEN
+from сonfig import TELEGRAM_TOKEN  #app/сonfig.py
 from bot import handle_update  # создадим в следующем шаге
 
 app = FastAPI()
