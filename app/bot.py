@@ -12,6 +12,7 @@ async def handle_update(data: dict):
         
 async def handle_update(data: dict):
    logging.warning("Handle update called!") 
+    
    if "message" not in data:   
         return  
 
