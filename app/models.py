@@ -20,5 +20,4 @@ class Word(Base):
     text = Column(String, nullable=False)
     language = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-
     sprint = relationship("Sprint", back_populates="words")

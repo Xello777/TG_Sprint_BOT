@@ -12,4 +12,6 @@ def is_valid_input(words: list[str]) -> bool:
     if not (1 <= len(words) <= 3):
         return False
     joined = ' '.join(words)
-    return not profanity.contains_profanity(joined)
+    if profanity.contains_profanity(joined):
+        return False
+    return True

@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
-
 from app.config import DATABASE_URL
 from app.models import Base, Sprint, Word
 
@@ -24,7 +23,7 @@ def end_sprint(sprint_id: int):
     session.commit()
     session.close()
 
-def get_active_sprints() -> list[int]:
+def get_active_sprints():
     session = Session()
     now = datetime.utcnow()
     result = session.scalars(select(Sprint.id).where(Sprint.active == True, Sprint.ends_at > now)).all()
@@ -38,7 +37,7 @@ def add_word(user_id: int, sprint_id: int, text: str, language: str):
     session.commit()
     session.close()
 
-def get_words_for_sprint(sprint_id: int) -> list[tuple[str, str]]:
+def get_words_for_sprint(sprint_id: int):
     session = Session()
     words = session.query(Word.text, Word.language).filter_by(sprint_id=sprint_id).all()
     session.close()
