@@ -10,7 +10,7 @@ import csv
 import io
 import logging
 
-logging.basicConfig(level=logging.DEBUG)  # Set to DEBUG for detailed logs
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
@@ -19,7 +19,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
     logger.debug(f"Received /start from user_id: {user_id}, username: @{username}")
     logger.debug(f"Checking if user is admin: {user_id in ADMIN_IDS}")
     try:
-        # Register or update user in DB
         db_user = db.query(User).filter(User.id == user_id).first()
         logger.debug(f"DB query for user_id {user_id}: {'Found' if db_user else 'Not found'}")
         if not db_user:
@@ -28,15 +27,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
             db.commit()
             logger.debug(f"Created new user in DB: user_id {user_id}, username: @{username}")
         else:
-            db_user.username = username  # Update username if changed
+            db_user.username = username
             db.commit()
             logger.debug(f"Updated username for user_id {user_id} to @{username}")
 
-        # Query active sprints
         active_sprints = db.query(Sprint).filter(Sprint.status == SprintStatus.active).all()
         logger.debug(f"Found {len(active_sprints)} active sprints for user_id {user_id}")
 
-        # Build response message
         response = "🎉 Привет! Готов кинуть пару слов для спринта? (Hi! Ready to drop some words for the sprint?)\n\n"
         if active_sprints:
             response += "📋 Текущие активные спринты (Active sprints):\n"
@@ -366,7 +363,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     text = update.message.text.strip()
-    logger.debug(f"Received message from user_id: {user_id}, text: '{text}'")
+    logger.debug(f"Received non-command message from user_id: {user_id}, text: '{text}'")
     try:
         active_sprints = db.query(Sprint).filter(Sprint.status == SprintStatus.active).all()
         logger.debug(f"Found {len(active_sprints)} active sprints")
@@ -421,14 +418,14 @@ def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
         logger.debug("Registering command handlers")
-        app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
-        app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db)))
-        app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db)))
-        app.add_handler(CommandHandler("start_sprint", lambda update, context: start_sprint(update, context, db)))
-        app.add_handler(CommandHandler("end_sprint", lambda update, context: end_sprint(update, context, db)))
-        app.add_handler(CommandHandler("get_words", lambda update, context: get_words(update, context, db)))
-        app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db)))
-        app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db)))
+        app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("startsprint", lambda update, context: start_sprint(update, context, db), filters=filters.COMMAND))  # Match Telegram's parsing
+        app.add_handler(CommandHandler("end_sprint", lambda update, context: end_sprint(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("get_words", lambda update, context: get_words(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db), filters=filters.COMMAND))
+        app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db), filters=filters.COMMAND))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: handle_message(update, context, db)))
         logger.debug("Command handlers registered successfully")
 
