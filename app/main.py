@@ -26,11 +26,12 @@ async def startup_event():
 
         logger.debug("Initializing Telegram bot application")
         telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
-        db: Session = next(get_db())
-        logger.debug("Database session initialized")
 
-        logger.debug("Setting up bot handlers")
-        setup_bot(telegram_app, db)
+        logger.debug("Initializing database session")
+        with next(get_db()) as db:  # Use context manager to get session
+            logger.debug("Database session initialized")
+            logger.debug("Setting up bot handlers")
+            setup_bot(telegram_app, db)
 
         logger.debug(f"Setting webhook to {WEBHOOK_URL}")
         await telegram_app.bot.setWebhook(WEBHOOK_URL)
