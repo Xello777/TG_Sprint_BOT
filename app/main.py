@@ -16,7 +16,7 @@ async def startup():
     try:
         init_db()
         telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
-        with get_db() as db:
+        with get_db() as db:  # Correctly use the context manager
             setup_bot(telegram_app, db)
         await telegram_app.initialize()
         await telegram_app.bot.set_webhook(WEBHOOK_URL)
