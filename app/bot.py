@@ -28,9 +28,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
             db.commit()
 
         active_sprints = db.query(Sprint).filter(Sprint.status == SprintStatus.active).all()
-        response = "🎉 Привет! Готов кинуть пару слов для спринта? (Hi! Ready to drop some words for the sprint?)\n\n"
+        response = "🎉 Привет! Готов кинуть пару слов для спринта?\n\n"
         if active_sprints:
-            response += "📋 Текущие активные спринты (Active sprints):\n"
+            response += "📋 Текущие активные спринты:\n"
             for sprint in active_sprints:
                 response += f"Спринт #{sprint.id}: Тема '{sprint.theme}', Длительность: {sprint.duration} дней\n"
             response += "\nОтправь 1 или 3 слова для участия!"
@@ -73,6 +73,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
             "/get_words <id> - Получить слова спринта в CSV\n"
             "/list_sprints - Показать все спринты\n"
             "/broadcast <текст> - Отправить сообщение всем пользователям\n"
+            "/test_sprint - Тестовая команда\n"
             "\nНапиши /help, чтобы увидеть свои возможности"
         )
         await update.message.reply_text(response)
@@ -82,7 +83,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
 
 async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /start_sprint or /startsprint from user_id: {user_id}, text: {update.message.text}, args: {context.args}")
+    command = update.message.text.split()[0]
+    logger.debug(f"Received {command} from user_id: {user_id}, text: {update.message.text}, args: {context.args}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может запускать спринты!\nНапиши /help, чтобы увидеть свои возможности")
@@ -126,6 +128,11 @@ async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
     except Exception as e:
         logger.error(f"Error in start_sprint for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось запустить спринт!\nНапиши /help, чтобы увидеть свои возможности")
+
+async def test_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
+    user_id = update.effective_user.id
+    logger.debug(f"Received /test_sprint from user_id: {user_id}, text: {update.message.text}")
+    await update.message.reply_text("✅ Тестовая команда работает! Напиши /help для других команд.")
 
 async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
@@ -287,17 +294,33 @@ async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
 def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
+        logger.debug("Registering command handlers")
         app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
+        logger.debug("Registered /start handler")
         app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db)))
+        logger.debug("Registered /whoami handler")
         app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db)))
-        app.add_handler(CommandHandler(["start_sprint", "startsprint"], lambda update, context: start_sprint(update, context, db)))
+        logger.debug("Registered /help handler")
+        app.add_handler(CommandHandler("start_sprint", lambda update, context: start_sprint(update, context, db)))
+        logger.debug("Registered /start_sprint handler")
+        app.add_handler(CommandHandler("startsprint", lambda update, context: start_sprint(update, context, db)))
+        logger.debug("Registered /startsprint handler")
+        app.add_handler(CommandHandler("test_sprint", lambda update, context: test_sprint(update, context, db)))
+        logger.debug("Registered /test_sprint handler")
         app.add_handler(CommandHandler("end_sprint", lambda update, context: end_sprint(update, context, db)))
+        logger.debug("Registered /end_sprint handler")
         app.add_handler(CommandHandler("get_words", lambda update, context: get_words(update, context, db)))
+        logger.debug("Registered /get_words handler")
         app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db)))
+        logger.debug("Registered /list_sprints handler")
         app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db)))
+        logger.debug("Registered /broadcast handler")
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: handle_message(update, context, db)))
+        logger.debug("Registered text message handler")
         app.add_handler(MessageHandler(filters.COMMAND, lambda update, context: handle_unrecognized_command(update, context)))
-        
+        logger.debug("Registered unrecognized command handler")
+
+        logger.debug("Setting up scheduler for daily report")
         scheduler = AsyncIOScheduler()
         scheduler.add_job(daily_report, 'cron', hour=0, minute=0, args=[app.bot, db])
         scheduler.start()
