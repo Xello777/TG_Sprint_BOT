@@ -1,11 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models import Base
 from app.config import DATABASE_URL
-from contextlib import contextmanager
+from app.models import Base  # Import Base for table creation
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 logger.debug(f"Connecting to database: {DATABASE_URL}")
-@contextmanager
 try:
     engine = create_engine(DATABASE_URL)
     logger.debug("Database engine created successfully")
@@ -16,10 +18,13 @@ except Exception as e:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
+    logger.debug("Initializing database tables")
     try:
         Base.metadata.create_all(bind=engine)
+        logger.debug("Database tables created successfully")
     except Exception as e:
-        raise RuntimeError(f"Failed to initialize database: {e}")
+        logger.error(f"Error initializing database tables: {e}", exc_info=True)
+        raise
 
 def get_db():
     logger.debug("Creating new database session")
