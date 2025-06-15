@@ -1,8 +1,9 @@
 import logging
 from fastapi import FastAPI, Request, HTTPException
 from telegram.ext import Application
+from telegram import Update as TelegramUpdate
 from app.bot import setup_bot
-from app.db import get_db, init_db  # Import init_db
+from app.db import get_db, init_db
 from app.config import TELEGRAM_TOKEN, WEBHOOK_URL
 from sqlalchemy.orm import Session
 
@@ -25,14 +26,14 @@ async def startup_event():
             raise ValueError("WEBHOOK_URL is not set")
 
         logger.debug("Initializing database")
-        init_db()  # Create database tables
+        init_db()
         logger.debug("Database initialized")
 
         logger.debug("Initializing Telegram bot application")
         telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
         logger.debug("Initializing database session")
-        with next(get_db()) as db:  # Use context manager
+        with next(get_db()) as db:
             logger.debug("Database session initialized")
             logger.debug("Setting up bot handlers")
             setup_bot(telegram_app, db)
@@ -66,8 +67,10 @@ async def webhook(request: Request):
     logger.debug("Received webhook request")
     try:
         telegram_app = app.state.telegram_app
-        update = await request.json()
-        logger.debug(f"Webhook update: {update}")
+        json_data = await request.json()
+        logger.debug(f"Webhook update: {json_data}")
+        update = TelegramUpdate.de_json(json_data, telegram_app.bot)
+        logger.debug(f"Parsed Telegram update: {update}")
         await telegram_app.process_update(update)
         logger.debug("Webhook processed successfully")
         return {"status": "ok"}
