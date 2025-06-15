@@ -350,6 +350,7 @@ def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
         logger.debug("Registering command handlers")
+        # Сначала все CommandHandler
         app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
         logger.debug("Registered /start handler")
         app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db)))
@@ -370,10 +371,12 @@ def setup_bot(app: Application, db: Session):
         logger.debug("Registered /list_sprints handler")
         app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db)))
         logger.debug("Registered /broadcast handler")
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: handle_message(update, context, db)))
-        logger.debug("Registered text message handler")
+        # MessageHandler для команд
         app.add_handler(MessageHandler(filters.COMMAND, lambda update, context: handle_unrecognized_command(update, context)))
         logger.debug("Registered unrecognized command handler")
+        # MessageHandler для текста
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: handle_message(update, context, db)))
+        logger.debug("Registered text message handler")
 
         logger.debug("Setting up scheduler for daily report")
         scheduler = AsyncIOScheduler()
