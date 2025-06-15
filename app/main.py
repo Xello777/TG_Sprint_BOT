@@ -70,7 +70,8 @@ async def webhook(request: Request):
         json_data = await request.json()
         logger.debug(f"Webhook update: {json_data}")
         update = TelegramUpdate.de_json(json_data, telegram_app.bot)
-        logger.debug(f"Parsed Telegram update: {update}")
+        logger.debug(f"Parsed Telegram update: {update.to_dict()}")
+        logger.debug(f"Update contains command: {update.message.text.startswith('/') if update.message else False}")
         await telegram_app.process_update(update)
         logger.debug("Webhook processed successfully")
         return {"status": "ok"}
