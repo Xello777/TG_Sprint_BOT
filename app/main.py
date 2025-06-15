@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from telegram.ext import Application
 from app.bot import setup_bot
-from app.db import get_db
+from app.db import get_db, init_db  # Import init_db
 from app.config import TELEGRAM_TOKEN, WEBHOOK_URL
 from sqlalchemy.orm import Session
 
@@ -24,11 +24,15 @@ async def startup_event():
             logger.error("WEBHOOK_URL is not set")
             raise ValueError("WEBHOOK_URL is not set")
 
+        logger.debug("Initializing database")
+        init_db()  # Create database tables
+        logger.debug("Database initialized")
+
         logger.debug("Initializing Telegram bot application")
         telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
 
         logger.debug("Initializing database session")
-        with next(get_db()) as db:  # Use context manager to get session
+        with next(get_db()) as db:  # Use context manager
             logger.debug("Database session initialized")
             logger.debug("Setting up bot handlers")
             setup_bot(telegram_app, db)
