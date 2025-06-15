@@ -1,4 +1,4 @@
- from telegram import Update
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
 from app.models import User, Sprint, Word, SprintStatus
