@@ -1,4 +1,4 @@
-from telegram import Update
+ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
 from app.models import User, Sprint, Word, SprintStatus
@@ -50,6 +50,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
         logger.debug(f"Sent response to user_id {user_id}: {response}")
     except Exception as e:
         logger.error(f"Error in start for user_id {user_id}: {e}")
+        await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
+
+async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
+    user_id = update.effective_user.id
+    username = update.effective_user.username or "unknown"
+    logger.debug(f"Received /whoami from user_id: {user_id}, username: @{username}")
+    try:
+        is_admin = user_id in ADMIN_IDS
+        response = (
+            f"ℹ️ Твой Telegram ID: {user_id}\n"
+            f"Username: @{username}\n"
+            f"Статус админа: {'Да' if is_admin else 'Нет'} (Admin status: {'True' if is_admin else 'False'})\n"
+        )
+        if is_admin:
+            response += "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
+        await update.message.reply_text(response)
+        logger.debug(f"Sent /whoami response to user_id {user_id}: {response}")
+    except Exception as e:
+        logger.error(f"Error in whoami for user_id {user_id}: {e}")
         await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
@@ -377,6 +396,7 @@ def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
         app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
+        app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db)))
         app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db)))
         app.add_handler(CommandHandler("start_sprint", lambda update, context: start_sprint(update, context, db)))
         app.add_handler(CommandHandler("end_sprint", lambda update, context: end_sprint(update, context, db)))
