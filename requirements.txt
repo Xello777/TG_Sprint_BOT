@@ -1,7 +1,11 @@
-fastapi
-uvicorn
-python-dotenv
-sqlalchemy
-langdetect
+fastapi==0.115.0
+python-telegram-bot==21.4
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+langdetect==1.0.9
+better-profanity==0.7.0
+apscheduler==3.10.4
+python-dotenv==1.0.1
+uvicorn==0.31.0
 better_profanity
 httpx
