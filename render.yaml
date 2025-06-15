@@ -10,9 +10,15 @@ services:
         value: 3.10
       - key: TELEGRAM_TOKEN
         sync: false
-      - key: ADMIN_ID
+      - key: ADMIN_IDS
         sync: false
       - key: DATABASE_URL
-        value: sqlite:///sprintbot.db
+        fromDatabase:
+          name: sprintbot_db
+          property: connectionString
       - key: WEBHOOK_URL
         sync: false
+
+databases:
+  - name: sprintbot_db
+    plan: free
