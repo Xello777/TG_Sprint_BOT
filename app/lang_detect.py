@@ -1,11 +1,11 @@
 from langdetect import detect, DetectorFactory
-DetectorFactory.seed = 42
+from langdetect.lang_detect_exception import LangDetectException
 
-SUPPORTED_LANGUAGES = {"en", "ru", "es", "fr", "de", "uk", "it"}
+# Ensure consistent language detection results
+DetectorFactory.seed = 0
 
 def detect_language(text: str) -> str:
     try:
-        lang = detect(text)
-        return lang if lang in SUPPORTED_LANGUAGES else "unknown"
-    except Exception:
-        return "unknown"
+        return detect(text)
+    except LangDetectException:
+        return ""
