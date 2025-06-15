@@ -49,7 +49,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
         await update.message.reply_text(response)
         logger.debug(f"Sent response to user_id {user_id}: {response}")
     except Exception as e:
-        logger.error(f"Error in start for user_id {user_id}: {e}")
+        logger.error(f"Error in start for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
 
 async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
@@ -68,7 +68,7 @@ async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session
         await update.message.reply_text(response)
         logger.debug(f"Sent /whoami response to user_id {user_id}: {response}")
     except Exception as e:
-        logger.error(f"Error in whoami for user_id {user_id}: {e}")
+        logger.error(f"Error in whoami for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
@@ -92,36 +92,51 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
         await update.message.reply_text(response)
         logger.debug(f"Sent /help response to admin {user_id}")
     except Exception as e:
-        logger.error(f"Error in help_command for user_id {user_id}: {e}")
+        logger.error(f"Error in help_command for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
 
 async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     logger.debug(f"Received /start_sprint from user_id: {user_id}, args: {context.args}")
-    logger.debug(f"Checking if user is admin: {user_id in ADMIN_IDS}")
-    if user_id not in ADMIN_IDS:
-        logger.debug(f"User {user_id} is not an admin, rejecting command")
-        await update.message.reply_text(
-            "❌ Только админ может запускать спринты! (Only the admin can start sprints!)\n"
-            "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
-        )
-        return
+    logger.debug(f"Checking ADMIN_IDS: {ADMIN_IDS}")
+    logger.debug(f"Is user {user_id} in ADMIN_IDS? {user_id in ADMIN_IDS}")
     try:
+        if user_id not in ADMIN_IDS:
+            logger.debug(f"User {user_id} is not an admin, rejecting command")
+            response = (
+                "❌ Только админ может запускать спринты! (Only the admin can start sprints!)\n"
+                "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
+            )
+            await update.message.reply_text(response)
+            logger.debug(f"Sent non-admin response to user_id {user_id}")
+            return
+
+        logger.debug(f"Processing /start_sprint with args: {context.args}")
         if len(context.args) < 2:
             logger.debug(f"Invalid arguments for /start_sprint: {context.args}")
-            await update.message.reply_text(
+            response = (
                 "❌ Используй: /start_sprint <длительность: 1, 7 или 30> <тема> (Use: /start_sprint <duration: 1, 7, or 30> <theme>)\n"
                 "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
             )
+            await update.message.reply_text(response)
+            logger.debug(f"Sent invalid args response to user_id {user_id}")
             return
+
+        logger.debug(f"Parsing duration from args[0]: {context.args[0]}")
         duration = int(context.args[0])
         logger.debug(f"Parsed duration: {duration}")
         if duration not in [1, 7, 30]:
+            logger.debug(f"Invalid duration: {duration}")
             raise ValueError("Invalid duration")
+
+        logger.debug(f"Parsing theme from args[1:]: {context.args[1:]}")
         theme = " ".join(context.args[1:])
         logger.debug(f"Parsed theme: {theme}")
         if not theme:
+            logger.debug("Theme is empty")
             raise ValueError("Theme is required")
+
+        logger.debug("Creating new sprint")
         sprint = Sprint(
             duration=duration,
             theme=theme,
@@ -129,33 +144,43 @@ async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
             end_date=datetime.utcnow() + timedelta(days=duration)
         )
         db.add(sprint)
+        logger.debug("Committing sprint to database")
         db.commit()
         logger.debug(f"Created sprint #{sprint.id} with duration {duration} and theme '{theme}'")
+
+        logger.debug("Querying all users for notification")
         users = db.query(User).all()
         logger.debug(f"Found {len(users)} users to notify about new sprint")
         for user in users:
+            logger.debug(f"Notifying user_id {user.id}")
             await context.bot.send_message(
                 chat_id=user.id,
                 text=f"🎉 Новый спринт начался! Тема: {theme}. Время: {duration} дней. Кидайте свои слова! (New sprint started! Theme: {theme}. Duration: {duration} days. Send your words!)"
             )
             logger.debug(f"Notified user_id {user.id} about new sprint")
-        await update.message.reply_text(
+
+        response = (
             f"✅ Спринт #{sprint.id} запущен! (Sprint #{sprint.id} started!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
         )
-        logger.debug(f"Confirmed sprint start to admin {user_id}")
+        await update.message.reply_text(response)
+        logger.debug(f"Sent success response to admin {user_id}: {response}")
     except ValueError as e:
-        logger.error(f"ValueError in start_sprint for user_id {user_id}: {e}")
-        await update.message.reply_text(
+        logger.error(f"ValueError in start_sprint for user_id {user_id}: {e}", exc_info=True)
+        response = (
             f"❌ Ошибка: {str(e)}. Используй: /start_sprint <длительность: 1, 7 или 30> <тема> (Error: {str(e)}. Use: /start_sprint <duration: 1, 7, or 30> <theme>)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
         )
+        await update.message.reply_text(response)
+        logger.debug(f"Sent ValueError response to user_id {user_id}")
     except Exception as e:
-        logger.error(f"Error in start_sprint for user_id {user_id}: {e}")
-        await update.message.reply_text(
+        logger.error(f"Unexpected error in start_sprint for user_id {user_id}: {e}", exc_info=True)
+        response = (
             "❌ Не удалось запустить спринт! (Failed to start sprint!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
         )
+        await update.message.reply_text(response)
+        logger.debug(f"Sent error response to user_id {user_id}")
 
 async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
@@ -201,7 +226,7 @@ async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Ses
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
         )
     except Exception as e:
-        logger.error(f"Error in end_sprint for user_id {user_id}: {e}")
+        logger.error(f"Error in end_sprint for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ Не удалось завершить спринт! (Failed to end sprint!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
@@ -259,7 +284,7 @@ async def get_words(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
         )
     except Exception as e:
-        logger.error(f"Error in get_words for user_id {user_id}: {e}")
+        logger.error(f"Error in get_words for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ Не удалось получить слова! (Failed to get words!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
@@ -292,7 +317,7 @@ async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
         await update.message.reply_text(response)
         logger.debug(f"Sent sprints list to admin {user_id}")
     except Exception as e:
-        logger.error(f"Error in list_sprints for user_id {user_id}: {e}")
+        logger.error(f"Error in list_sprints for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ Не удалось получить список спринтов! (Failed to list sprints!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
@@ -332,7 +357,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
         )
         logger.debug(f"Confirmed broadcast to admin {user_id}")
     except Exception as e:
-        logger.error(f"Error in broadcast for user_id {user_id}: {e}")
+        logger.error(f"Error in broadcast for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text(
             "❌ Не удалось отправить сообщение! (Failed to send broadcast!)\n"
             "Напиши /help, чтобы увидеть свои возможности (Write /help to see your options)"
@@ -368,7 +393,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
             await update.message.reply_text(
                 f"✅ Слова приняты для спринта #{sprint.id}! (Words accepted for sprint #{sprint.id}!)")
     except Exception as e:
-        logger.error(f"Error in handle_message for user_id {user_id}: {e}")
+        logger.error(f"Error in handle_message for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так! (Something went wrong!)")
 
 async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
@@ -390,11 +415,12 @@ async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
             await context.bot.send_message(chat_id=admin_id, text=report)
             logger.debug(f"Sent daily report to admin_id {admin_id}")
     except Exception as e:
-        logger.error(f"Error in daily_report: {e}")
+        logger.error(f"Error in daily_report: {e}", exc_info=True)
 
 def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
+        logger.debug("Registering command handlers")
         app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
         app.add_handler(CommandHandler("whoami", lambda update, context: whoami(update, context, db)))
         app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db)))
@@ -404,10 +430,13 @@ def setup_bot(app: Application, db: Session):
         app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db)))
         app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db)))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, lambda update, context: handle_message(update, context, db)))
+        logger.debug("Command handlers registered successfully")
+
+        logger.debug("Setting up scheduler for daily report")
         scheduler = AsyncIOScheduler()
         scheduler.add_job(daily_report, 'cron', hour=0, minute=0, args=[app.bot, db])
         scheduler.start()
         logger.debug("Bot handlers and scheduler set up successfully")
     except Exception as e:
-        logger.error(f"Error in setup_bot: {e}")
+        logger.error(f"Error in setup_bot: {e}", exc_info=True)
         raise
