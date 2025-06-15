@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     username = update.effective_user.username or "unknown"
-    logger.debug(f"Received /start from user_id: {user_id}, username: @{username}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция start, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         db_user = db.query(User).filter(User.id == user_id).first()
         if not db_user:
@@ -40,11 +42,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session)
     except Exception as e:
         logger.error(f"Error in start for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция start, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     username = update.effective_user.username or "unknown"
-    logger.debug(f"Received /whoami from user_id: {user_id}, username: @{username}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция whoami, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         is_admin = user_id in ADMIN_IDS
         response = (
@@ -58,10 +64,14 @@ async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session
     except Exception as e:
         logger.error(f"Error in whoami for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция whoami, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /help from user_id: {user_id}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция help_command, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может использовать /help!")
@@ -80,11 +90,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
     except Exception as e:
         logger.error(f"Error in help_command for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция help_command, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     command = update.message.text.split()[0]
-    logger.debug(f"Received {command} from user_id: {user_id}, text: {update.message.text}, args: {context.args}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция start_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может запускать спринты!\nНапиши /help, чтобы увидеть свои возможности")
@@ -128,15 +142,27 @@ async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
     except Exception as e:
         logger.error(f"Error in start_sprint for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось запустить спринт!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция start_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def test_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /test_sprint from user_id: {user_id}, text: {update.message.text}")
-    await update.message.reply_text("✅ Тестовая команда работает! Напиши /help для других команд.")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция test_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
+    try:
+        await update.message.reply_text("✅ Тестовая команда работает! Напиши /help для других команд.")
+    except Exception as e:
+        logger.error(f"Error in test_sprint for user_id {user_id}: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция test_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /end_sprint from user_id: {user_id}, args: {context.args}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция end_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может завершать спринты!\nНапиши /help, чтобы увидеть свои возможности")
@@ -159,10 +185,14 @@ async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Ses
     except Exception as e:
         logger.error(f"Error in end_sprint for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось завершить спринт!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция end_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def get_words(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /get_words from user_id: {user_id}, args: {context.args}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция get_words, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может получать слова!\nНапиши /help, чтобы увидеть свои возможности")
@@ -194,10 +224,14 @@ async def get_words(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
     except Exception as e:
         logger.error(f"Error in get_words for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось получить слова!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция get_words, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /list_sprints from user_id: {user_id}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция list_sprints, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может смотреть спринты!\nНапиши /help, чтобы увидеть свои возможности")
@@ -214,10 +248,14 @@ async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
     except Exception as e:
         logger.error(f"Error in list_sprints for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось получить список спринтов!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция list_sprints, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    logger.debug(f"Received /broadcast from user_id: {user_id}, args: {context.args}")
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция broadcast, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
         if user_id not in ADMIN_IDS:
             await update.message.reply_text("❌ Только админ может рассылать сообщения!\nНапиши /help, чтобы увидеть свои возможности")
@@ -236,12 +274,18 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
     except Exception as e:
         logger.error(f"Error in broadcast for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Не удалось отправить сообщение!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция broadcast, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
     text = update.message.text.strip()
-    logger.debug(f"Received message from user_id: {user_id}, text: '{text}'")
+    args = context.args
+    logger.debug(f"Функция handle_message, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
+        if text.startswith('/'):
+            logger.debug(f"Skipping command in handle_message: {text}")
+            return
         active_sprints = db.query(Sprint).filter(Sprint.status == SprintStatus.active).all()
         if not active_sprints:
             await update.message.reply_text("❌ Нет активных спринтов! Жди новый!")
@@ -265,17 +309,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
     except Exception as e:
         logger.error(f"Error in handle_message for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция handle_message, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def handle_unrecognized_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
-    logger.debug(f"Unrecognized command from user_id: {user_id}, text: '{text}'")
-    await update.message.reply_text(
-        f"❌ Неизвестная команда: {text}. Напиши /help для списка команд!"
-    )
+    args = context.args
+    logger.debug(f"Функция handle_unrecognized_command, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
+    try:
+        await update.message.reply_text(
+            f"❌ Неизвестная команда: {text}. Напиши /help для списка команд!"
+        )
+    except Exception as e:
+        logger.error(f"Error in handle_unrecognized_command for user_id {user_id}: {e}", exc_info=True)
+        await update.message.reply_text("❌ Ой, что-то пошло не так!")
+    finally:
+        logger.debug(f"Функция handle_unrecognized_command, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
-    logger.debug("Running daily report")
+    logger.debug("Функция daily_report, СТАРТ, параметры: {}")
     try:
         today = datetime.utcnow().date()
         start_of_day = datetime.combine(today, datetime.min.time())
@@ -290,6 +343,8 @@ async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
             await context.bot.send_message(chat_id=admin_id, text=report)
     except Exception as e:
         logger.error(f"Error in daily_report: {e}", exc_info=True)
+    finally:
+        logger.debug("Функция daily_report, ЗАВЕРШЕНИЕ, параметры: {}")
 
 def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
