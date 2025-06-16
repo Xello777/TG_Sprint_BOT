@@ -2,7 +2,8 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from telegram import Update
 from telegram.ext import Application
-from app.bot import SessionLocal
+from app.bot import setup_bot
+from app.database import SessionLocal
 import logging
 import os
 
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-telegram_app = Application.bot().token(os.getenv("TELEGRAM_TOKEN")).build()
+telegram_app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
 db = SessionLocal()
 setup_bot(telegram_app, db)
 
@@ -21,7 +22,7 @@ async def webhook(request: Request):
     try:
         json_data = await request.json()
         logger.debug(f"Parsed Telegram update: {json_data}")
-        update = Update.de_json(json_data, telegram_app.bot))
+        update = Update.de_json(json_data, telegram_app.bot)
         if update.message and update.message.text:
             logger.debug(f"Update contains command: {update.message.text.startswith('/')}")
             logger.debug(f"Dispatching update with text: '{update.message.text}'")
