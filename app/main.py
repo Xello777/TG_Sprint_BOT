@@ -1,64 +1,65 @@
-import logging
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from telegram import Update
 from telegram.ext import Application
-from telegram import Update as TelegramUpdate
 from app.bot import setup_bot
-from app.db import get_db, init_db
-from app.config import TELEGRAM_TOKEN, WEBHOOK_URL
-from sqlalchemy.orm import Session
+from app.database import SessionLocal, engine
+from app.models import Base
+import logging
+import os
+import asyncio
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 app = FastAPI()
 
+telegram_app = None
+db_session = None
+
 @app.on_event("startup")
 async def startup_event():
-    logger.debug("Starting up FastAPI application")
+    global telegram_app, db_session
+    logger.debug("Starting up application")
     try:
-        logger.debug(f"TELEGRAM_TOKEN: {'Set' if TELEGRAM_TOKEN else 'Not set'}")
-        logger.debug(f"WEBHOOK_URL: {WEBHOOK_URL}")
-        if not TELEGRAM_TOKEN:
-            logger.error("TELEGRAM_TOKEN is not set")
-            raise ValueError("TELEGRAM_TOKEN is not set")
-        if not WEBHOOK_URL:
-            logger.error("WEBHOOK_URL is not set")
-            raise ValueError("WEBHOOK_URL is not set")
+        # Create database tables
+        Base.metadata.create_all(bind=engine)
+        logger.debug("Database tables created")
 
-        logger.debug("Initializing database")
-        init_db()
-        logger.debug("Database initialized")
+        # Initialize database session
+        db_session = SessionLocal()
+        logger.debug("Database session initialized")
 
-        logger.debug("Initializing Telegram bot application")
-        telegram_app = Application.builder().token(TELEGRAM_TOKEN).build()
+        # Initialize Telegram bot
+        telegram_app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
+        setup_bot(telegram_app, db_session)
+        logger.debug("Telegram bot initialized")
 
-        logger.debug("Initializing database session")
-        with next(get_db()) as db:
-            logger.debug("Database session initialized")
-            logger.debug("Setting up bot handlers")
-            setup_bot(telegram_app, db)
+        # Set webhook
+        webhook_url = f"{os.getenv('WEBHOOK_URL')}/webhook"
+        await telegram_app.bot.set_webhook(webhook_url)
+        logger.debug(f"Webhook set to {webhook_url}")
 
-        logger.debug(f"Setting webhook to {WEBHOOK_URL}")
-        await telegram_app.bot.setWebhook(WEBHOOK_URL)
-        logger.debug("Webhook set successfully")
-
-        logger.debug("Starting Telegram bot polling")
+        # Start the application
         await telegram_app.initialize()
-        app.state.telegram_app = telegram_app
-        logger.debug("Startup completed successfully")
+        await telegram_app.start()
+        logger.debug("Telegram application started")
     except Exception as e:
         logger.error(f"Error during startup: {e}", exc_info=True)
         raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.debug("Shutting down FastAPI application")
+    global telegram_app, db_session
+    logger.debug("Shutting down application")
     try:
-        if hasattr(app.state, "telegram_app"):
-            logger.debug("Stopping Telegram bot")
-            await app.state.telegram_app.stop()
-            await app.state.telegram_app.shutdown()
-        logger.debug("Shutdown completed")
+        if telegram_app:
+            await telegram_app.stop()
+            await telegram_app.shutdown()
+            logger.debug("Telegram application stopped")
+        if db_session:
+            db_session.close()
+            logger.debug("Database session closed")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}", exc_info=True)
 
@@ -66,20 +67,19 @@ async def shutdown_event():
 async def webhook(request: Request):
     logger.debug("Received webhook request")
     try:
-        telegram_app = app.state.telegram_app
         json_data = await request.json()
-        logger.debug(f"Webhook update: {json_data}")
-        update = TelegramUpdate.de_json(json_data, telegram_app.bot)
-        logger.debug(f"Parsed Telegram update: {update.to_dict()}")
-        logger.debug(f"Update contains command: {update.message.text.startswith('/') if update.message else False}")
+        logger.debug(f"Parsed Telegram update: {json_data}")
+        update = Update.de_json(json_data, telegram_app.bot)
+        if update.message and update.message.text:
+            logger.debug(f"Update contains command: {update.message.text.startswith('/')}")
+            logger.debug(f"Dispatching update with text: '{update.message.text}'")
         await telegram_app.process_update(update)
         logger.debug("Webhook processed successfully")
-        return {"status": "ok"}
+        return JSONResponse(content={"ok": True})
     except Exception as e:
         logger.error(f"Error processing webhook: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/health")
-async def health_check():
-    logger.debug("Health check requested")
-    return {"status": "healthy"}
+async def health():
+    return {"status": "ok"}
