@@ -3,8 +3,6 @@ from fastapi.responses import JSONResponse
 from telegram import Update
 from telegram.ext import Application
 from app.bot import setup_bot
-from app.database import SessionLocal, engine
-from app.models import Base
 import logging
 import os
 import asyncio
@@ -13,26 +11,19 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
-
 telegram_app = None
-db_session = None
+db = None
 
 @app.on_event("startup")
 async def startup_event():
-    global telegram_app, db_session
+    global telegram_app, db
     logger.debug("Starting up application")
     try:
-        # Create database tables
-        Base.metadata.create_all(bind=engine)
-        logger.debug("Database tables created")
-
-        # Initialize database session
-        db_session = SessionLocal()
-        logger.debug("Database session initialized")
-
         # Initialize Telegram bot
         telegram_app = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
-        setup_bot(telegram_app, db_session)
+        from app.database import SessionLocal
+        db = SessionLocal()
+        setup_bot(telegram_app, db)
         logger.debug("Telegram bot initialized")
 
         # Set webhook
@@ -50,15 +41,15 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    global telegram_app, db_session
+    global telegram_app, db
     logger.debug("Shutting down application")
     try:
         if telegram_app:
             await telegram_app.stop()
             await telegram_app.shutdown()
             logger.debug("Telegram application stopped")
-        if db_session:
-            db_session.close()
+        if db:
+            db.close()
             logger.debug("Database session closed")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}", exc_info=True)
