@@ -318,6 +318,8 @@ async def handle_unrecognized_command(update: Update, context: ContextTypes.DEFA
     args = context.args
     logger.debug(f"Функция handle_unrecognized_command, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
     try:
+        entities = update.message.entities if update.message.entities else []
+        logger.debug(f"Message entities: {[(e.type, e.url if e.url else '') for e in entities]}")
         await update.message.reply_text(
             f"❌ Неизвестная команда: {text}. Напиши /help для списка команд!"
         )
