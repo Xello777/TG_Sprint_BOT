@@ -1,5 +1,5 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, MessageEntity
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, Filters
 from sqlalchemy.orm import Session
 from app.models import User, Sprint, Word, SprintStatus
 from app.filters import is_valid_input
@@ -12,6 +12,15 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Кастомный фильтр для TEXT_LINK, представляющих команды
+class BotCommandLink(Filters):
+    def filter(self, message):
+        if message.entities:
+            for entity in message.entities:
+                if entity.type == MessageEntity.TEXT_LINK and entity.url.startswith('tg://bot_command?command='):
+                    return True
+        return False
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
@@ -95,7 +104,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
 
 async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
-    command = update.message.text.split()[0]
     text = update.message.text.strip()
     args = context.args
     logger.debug(f"Функция start_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
@@ -128,12 +136,16 @@ async def start_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
         db.commit()
 
         users = db.query(User).all()
+        logger.debug(f"Количество пользователей для уведомления: {len(users)}")
+        if not users:
+            logger.debug("Нет пользователей для уведомления о новом спринте")
         for user in users:
+            logger.debug(f"Отправка уведомления о спринте пользователю {user.id}")
             await context.bot.send_message(
                 chat_id=user.id,
                 text=f"🎉 Новый спринт начался! Тема: {theme}. Время: {duration} дней. Кидайте свои слова!"
             )
-
+            logger.debug(f"Уведомление отправлено пользователю {user.id}")
         await update.message.reply_text(
             f"✅ Спринт #{sprint.id} запущен!\nНапиши /help, чтобы увидеть свои возможности"
         )
@@ -265,11 +277,17 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Sess
             await update.message.reply_text("❌ Укажи сообщение: /broadcast <текст>\nНапиши /help, чтобы увидеть свои возможности")
             return
         users = db.query(User).all()
+        logger.debug(f"Количество пользователей в базе: {len(users)}")
+        if not users:
+            await update.message.reply_text("❌ Нет пользователей в базе для рассылки!\nНапиши /help, чтобы увидеть свои возможности")
+            return
         for user in users:
+            logger.debug(f"Отправка сообщения пользователю {user.id}")
             await context.bot.send_message(
                 chat_id=user.id,
                 text=f"📢 {message}"
             )
+            logger.debug(f"Сообщение отправлено пользователю {user.id}")
         await update.message.reply_text("✅ Сообщение отправлено всем пользователям!\nНапиши /help, чтобы увидеть свои возможности")
     except Exception as e:
         logger.error(f"Error in broadcast for user_id {user_id}: {e}", exc_info=True)
@@ -358,9 +376,9 @@ def setup_bot(app: Application, db: Session):
         logger.debug("Registered /whoami handler")
         app.add_handler(CommandHandler("help", lambda update, context: help_command(update, context, db)))
         logger.debug("Registered /help handler")
-        app.add_handler(CommandHandler("start_sprint", lambda update, context: start_sprint(update, context, db)))
+        app.add_handler(CommandHandler("start_sprint", lambda update, context: start_sprint(update, context, db), filters=filters.COMMAND | BotCommandLink()))
         logger.debug("Registered /start_sprint handler")
-        app.add_handler(CommandHandler("startsprint", lambda update, context: start_sprint(update, context, db)))
+        app.add_handler(CommandHandler("startsprint", lambda update, context: start_sprint(update, context, db), filters=filters.COMMAND | BotCommandLink()))
         logger.debug("Registered /startsprint handler")
         app.add_handler(CommandHandler("test_sprint", lambda update, context: test_sprint(update, context, db)))
         logger.debug("Registered /test_sprint handler")
@@ -370,7 +388,7 @@ def setup_bot(app: Application, db: Session):
         logger.debug("Registered /get_words handler")
         app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db)))
         logger.debug("Registered /list_sprints handler")
-        app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db)))
+        app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db), filters=filters.COMMAND | BotCommandLink()))
         logger.debug("Registered /broadcast handler")
         app.add_handler(MessageHandler(filters.COMMAND, lambda update, context: handle_unrecognized_command(update, context)))
         logger.debug("Registered unrecognized command handler")
