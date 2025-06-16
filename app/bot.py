@@ -1,5 +1,6 @@
 from telegram import Update, MessageEntity
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, Filters
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext.filters import Filters
 from sqlalchemy.orm import Session
 from app.models import User, Sprint, Word, SprintStatus
 from app.filters import is_valid_input
@@ -91,6 +92,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
             "/end_sprint <id> - Завершить спринт\n"
             "/get_words <id> - Получить слова спринта в CSV\n"
             "/list_sprints - Показать все спринты\n"
+            "/list_users - Показать всех пользователей\n"
             "/broadcast <текст> - Отправить сообщение всем пользователям\n"
             "/test_sprint - Тестовая команда\n"
             "\nНапиши /help, чтобы увидеть свои возможности"
@@ -168,76 +170,7 @@ async def test_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Se
         logger.error(f"Error in test_sprint for user_id {user_id}: {e}", exc_info=True)
         await update.message.reply_text("❌ Ой, что-то пошло не так!")
     finally:
-        logger.debug(f"Функция test_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
-
-async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
-    user_id = update.effective_user.id
-    text = update.message.text.strip()
-    args = context.args
-    logger.debug(f"Функция end_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
-    try:
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("❌ Только админ может завершать спринты!\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        if not context.args:
-            await update.message.reply_text("❌ Укажи ID спринта: /end_sprint <id>\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        sprint_id = int(context.args[0])
-        sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
-        if not sprint:
-            await update.message.reply_text("❌ Спринт не найден!\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        sprint.status = SprintStatus.completed
-        db.commit()
-        await update.message.reply_text(
-            f"✅ Спринт #{sprint_id} завершён!\nНапиши /help, чтобы увидеть свои возможности"
-        )
-    except (IndexError, ValueError):
-        await update.message.reply_text("❌ Укажи ID спринта: /end_sprint <id>\nНапиши /help, чтобы увидеть свои возможности")
-    except Exception as e:
-        logger.error(f"Error in end_sprint for user_id {user_id}: {e}", exc_info=True)
-        await update.message.reply_text("❌ Не удалось завершить спринт!\nНапиши /help, чтобы увидеть свои возможности")
-    finally:
-        logger.debug(f"Функция end_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
-
-async def get_words(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
-    user_id = update.effective_user.id
-    text = update.message.text.strip()
-    args = context.args
-    logger.debug(f"Функция get_words, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
-    try:
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("❌ Только админ может получать слова!\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        if not context.args:
-            await update.message.reply_text("❌ Укажи ID спринта: /get_words <id>\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        sprint_id = int(context.args[0])
-        words = db.query(Word).filter(Word.sprint_id == sprint_id).all()
-        if not words:
-            await update.message.reply_text("❌ Нет слов для этого спринта!\nНапиши /help, чтобы увидеть свои возможности")
-            return
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["word", "user_id", "language", "submitted_at"])
-        for word in words:
-            writer.writerow([word.words, word.user_id, word.language, word.submitted_at])
-        output.seek(0)
-        await context.bot.send_document(
-            chat_id=user_id,
-            document=io.BytesIO(output.getvalue().encode()),
-            filename=f"sprint_{sprint_id}_words.csv"
-        )
-        await update.message.reply_text(
-            f"✅ Слова для спринта #{sprint_id} отправлены!\nНапиши /help, чтобы увидеть свои возможности"
-        )
-    except (IndexError, ValueError):
-        await update.message.reply_text("❌ Укажи ID спринта: /get_words <id>\nНапиши /help, чтобы увидеть свои возможности")
-    except Exception as e:
-        logger.error(f"Error in get_words for user_id {user_id}: {e}", exc_info=True)
-        await update.message.reply_text("❌ Не удалось получить слова!\nНапиши /help, чтобы увидеть свои возможности")
-    finally:
-        logger.debug(f"Функция get_words, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
+        logger.debug(f"Функция test_sprint, ЗАВЕРШЕНИЕ, параметры: {text=}")
 
 async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
@@ -250,7 +183,7 @@ async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
             return
         sprints = db.query(Sprint).all()
         if not sprints:
-            await update.message.reply_text("❌ Нет спринтов!\nНапиши /help, чтобы увидеть свои возможности")
+            await update.message.reply_text("❌ Нет спринтов!\n")
             return
         response = "📋 Спринты:\n"
         for sprint in sprints:
@@ -262,6 +195,98 @@ async def list_sprints(update: Update, context: ContextTypes.DEFAULT_TYPE, db: S
         await update.message.reply_text("❌ Не удалось получить список спринтов!\nНапиши /help, чтобы увидеть свои возможности")
     finally:
         logger.debug(f"Функция list_sprints, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
+
+async def list_users(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция list_users, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
+    try:
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("❌ Только админ может просматривать пользователей!\nНапиши /help, чтобы увидеть свои возможности")
+            return
+        users = db.query(User).all()
+        if not users:
+            await update.message.reply_text("❌ Нет пользователей!\nНапиши /help, чтобы увидеть свои возможности")
+            return
+        response = "👥 Пользователи:\n"
+        for user in users:
+            response += f"ID: {user.id}, Username: {user.username or 'none'}\n"
+        response += "\nНапиши /help, чтобы увидеть свои возможности"
+        await update.message.reply_text(response)
+    except Exception as e:
+        logger.error(f"Error in list_users for user_id {user_id}: {e}", exc_info=True)
+        await update.message.reply_text("❌ Не удалось получить список пользователей!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция list_users, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
+
+async def end_sprint(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция end_sprint, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
+    try:
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("❌ Только админ может завершать спринты!\nНапиши\n")
+            return
+        if not context.args:
+            await update.message.reply_text("❌ Укажи ID спринта!\nНапиши /help, чтобы увидеть свои возможности")
+            return
+        sprint_id = int(context.args[0])
+        sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+        if not sprint:
+            await update.message.reply_text("❌ Спринт не найден!\nНапиши /help, чтобы увидеть свои возможности")
+            return
+        sprint.status = SprintStatus.completed
+        db.commit()
+        await update.message.reply_text(
+            f"✅ Спринт #{sprint_id} завершён!\nНапиши /help, чтобы увидеть свои возможности"
+        )
+    except (IndexError, ValueError):
+        await update.message.reply_text("❌ Укажи ID: /end_sprint <id>\n")
+        logger.debug("IndexError")
+    except Exception as e:
+        logger.error(f"Error in end_sprint: {e}", exc_info=True)
+        await update.message.reply_text("❌ Не удалось завершить спринт!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция end_sprint, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
+
+async def get_words(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    args = context.args
+    logger.debug(f"Функция get_words, СТАРТ, параметры: {{text: '{text}', args: {args}}}")
+    try:
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("❌ Только админ может получать слова!\nНапиши\n")
+            return
+        if not context.args:
+            await update.message.reply_text("❌ Укажи ID спринта: /get_words <id>\nНапиши /help, чтобы увидеть свои возможности")
+            return
+        sprint_id = int(context.args[0])
+        words = db.query(Word).filter(Word.sprint_id == sprint_id).all()
+        if not words:
+            await update.message.reply_text("❌ Нет слов для этого спринта!\n")
+            return
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["word", "user_id", "language", "submitted_at"])
+        for word in words:
+            writer.writerow([word.words, word.user_id, word.language, word.submitted_at])
+        output.seek(0)
+        await context.bot.send_document(
+            chat_id=user_id,
+            document=io.BytesIO(output.getvalue().encode()),
+            filename=f"sprint_{sprint_id}_words.csv"
+        )
+        await update.message.reply_text(f"✅ Слова для спринта #{sprint_id} отправлены!\nНапиши /help, чтобы увидеть свои возможности")
+    except (IndexError, ValueError):
+        pass
+    except Exception as e:
+        logger.error(f"Error in get_words: {e}", exc_info=True)
+        await update.message.reply_text("❌ Не удалось получить слова!\nНапиши /help, чтобы увидеть свои возможности")
+    finally:
+        logger.debug(f"Функция get_words, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Session):
     user_id = update.effective_user.id
@@ -388,6 +413,8 @@ def setup_bot(app: Application, db: Session):
         logger.debug("Registered /get_words handler")
         app.add_handler(CommandHandler("list_sprints", lambda update, context: list_sprints(update, context, db)))
         logger.debug("Registered /list_sprints handler")
+        app.add_handler(CommandHandler("list_users", lambda update, context: list_users(update, context, db)))
+        logger.debug("Registered /list_users handler")
         app.add_handler(CommandHandler("broadcast", lambda update, context: broadcast(update, context, db), filters=filters.COMMAND | BotCommandLink()))
         logger.debug("Registered /broadcast handler")
         app.add_handler(MessageHandler(filters.COMMAND, lambda update, context: handle_unrecognized_command(update, context)))
