@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ApplicationHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from sqlalchemy.orm import Session
 from app.models import User, Sprint, Word, SprintStatus
 from app.filters import is_valid_input
@@ -327,10 +327,6 @@ async def handle_unrecognized_command(update: Update, context: ContextTypes.DEFA
     finally:
         logger.debug(f"Функция handle_unrecognized_command, ЗАВЕРШЕНИЕ, параметры: {{text: '{text}', args: {args}}}")
 
-async def debug_application(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip() if update.message else "No text"
-    logger.debug(f"ApplicationHandler: Processing update with text: '{text}'")
-
 async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
     logger.debug("Функция daily_report, СТАРТ, параметры: {}")
     try:
@@ -353,10 +349,6 @@ async def daily_report(context: ContextTypes.DEFAULT_TYPE, db: Session):
 def setup_bot(app: Application, db: Session):
     logger.debug(f"Setting up bot with ADMIN_IDS: {ADMIN_IDS}")
     try:
-        logger.debug("Registering application handler")
-        app.add_handler(ApplicationHandler(lambda update, context: debug_application(update, context)))
-        logger.debug("Registered application handler")
-
         logger.debug("Registering command handlers")
         app.add_handler(CommandHandler("start", lambda update, context: start(update, context, db)))
         logger.debug("Registered /start handler")
